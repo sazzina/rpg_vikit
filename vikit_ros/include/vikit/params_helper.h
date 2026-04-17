@@ -113,8 +113,15 @@ T getRemoteParam(const rclcpp::Node::SharedPtr &nh, const std::string& remote_no
     // Use SyncParametersClient for high performance cross-node access
     try {
         auto parameters_client = std::make_shared<rclcpp::SyncParametersClient>(nh, remote_node_name);
-        // Wait briefly for the service to be available
-        if (parameters_client->wait_for_service(std::chrono::milliseconds(100))) {
+        // MineSight patch (2026-04-16): upstream used 100ms, which is not enough
+        // on Jetson Orin Nano with a busy DDS graph. Measured cost of a fresh
+        // cross-process param lookup (`ros2 param get /parameter_blackboard cam_model`)
+        // is ~1.5s steady-state on the target platform, so vikit's 100ms budget
+        // failed every time and callers got default values (empty string /
+        // zero fx) → FAST-LIVO2 crashed with "Camera model not correctly
+        // specified" or segfaulted later on zero intrinsics. 5s is generous
+        // headroom and still bounded.
+        if (parameters_client->wait_for_service(std::chrono::seconds(5))) {
             auto values = parameters_client->get_parameters({param_name});
             if (!values.empty() && values[0].get_type() != rclcpp::ParameterType::PARAMETER_NOT_SET) {
                 return values[0].get_value<T>();
