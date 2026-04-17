@@ -8,11 +8,12 @@ SET(USE_ROS False) # Set False if you want to build this package without Catkin
 
 # Set build flags. Set IS_ARM on odroid board as environment variable
 SET(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
-IF(DEFINED ENV{ARM_ARCHITECTURE})
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -march=armv8-a")
-ELSE()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
-ENDIF()
+# MineSight patch (2026-04-16): removed the ENV{ARM_ARCHITECTURE}-gated block
+# that unconditionally appended x86 SIMD flags (-mmmx -msse -msse2 -msse3 -mssse3)
+# when the env var was not set. On Jetson Orin Nano / aarch64 those flags are
+# invalid and make c++ reject every source file. The CMAKE_SYSTEM_PROCESSOR
+# check below already does the right thing for both x86 and ARM, so the
+# ENV-based block was buggy duplicate logic.
 message("Current CPU archtecture: ${CMAKE_SYSTEM_PROCESSOR}")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)" )
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
